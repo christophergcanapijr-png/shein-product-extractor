@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Paste an assignment and build a TASK ACCOMPLISHED report.">
+    <title>Task accomplished — Product Extractor</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=20260903-tasks-parse">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="wordmark" href="/" aria-label="Product Extractor home">
+        <span class="wordmark-icon">S</span>
+        <span>Product Extractor</span>
+      </a>
+      <nav class="header-actions" aria-label="Application links">
+        <span id="healthStatus" class="health"><i></i><span>Connecting</span></span>
+        <a class="link-button is-active" href="/tasks" data-short="Tasks" aria-current="page">Task log</a>
+        <a class="link-button" href="/logo" data-short="Clean">Image cleaner</a>
+        <a class="link-button" href="/resizer" data-short="Resize">Image resizer</a>
+        <a class="link-button" href="/showcase" data-short="Showcase ↗">Showcase view ↗</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="intro">
+        <div>
+          <p class="kicker">Report builder</p>
+          <h1>Task accomplished creator</h1>
+          <p class="intro-copy">Paste the assignment he sent. Prompt, photo, account, and SKUs are read automatically. The report is ready to copy.</p>
+        </div>
+        <div class="stat">
+          <strong id="taskLineCount">0</strong>
+          <span>ready lines</span>
+        </div>
+      </section>
+
+      <section class="search-panel task-panel" aria-labelledby="taskPasteTitle">
+        <div class="panel-title-row">
+          <div>
+            <h2 id="taskPasteTitle">Assignment</h2>
+            <p>Paste the whole message. Parsing runs as soon as you paste.</p>
+          </div>
+        </div>
+        <textarea
+          id="taskAssignmentInput"
+          rows="8"
+          spellcheck="false"
+          placeholder="test on prompt hat with photo hat 3 on guinaless9 : YL5345621 black  XX58170 beige"
+          aria-label="Assignment he sent"
+        ></textarea>
+        <div class="form-footer">
+          <p id="taskParseStatus" class="muted">Waiting for an assignment.</p>
+          <div class="form-actions">
+            <button id="parseTaskButton" class="button button-ghost" type="button">Parse now</button>
+            <button id="copyTaskSkusButton" class="button button-ghost" type="button" disabled>Copy SKUs</button>
+            <button id="copyTaskReportButton" class="button button-primary" type="button" disabled>Copy report</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="search-panel task-panel" aria-labelledby="taskTableTitle">
+        <div class="panel-title-row">
+          <div>
+            <h2 id="taskTableTitle">Parsed tests</h2>
+            <p>Fix a row if a line was messy. Check <em>tests</em>, <em>photos</em>, or <em>()</em> to change wording.</p>
+          </div>
+        </div>
+
+        <div class="task-table-wrap">
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th>Prompt</th>
+                <th>Photo</th>
+                <th>Account</th>
+                <th>SKUs / notes</th>
+                <th class="task-flag">tests</th>
+                <th class="task-flag">photos</th>
+                <th class="task-flag">()</th>
+                <th class="task-remove-col"><span class="visually-hidden">Remove</span></th>
+              </tr>
+            </thead>
+            <tbody id="taskTableBody"></tbody>
+          </table>
+        </div>
+
+        <datalist id="taskPromptOptions"></datalist>
+        <datalist id="taskPhotoOptions"></datalist>
+        <datalist id="taskAccountOptions"></datalist>
+
+        <div class="form-footer">
+          <p>Rows stay in this browser until you clear them.</p>
+          <div class="form-actions">
+            <button id="addTaskRowButton" class="button button-ghost" type="button">Add row</button>
+            <button id="clearTaskRowsButton" class="button button-ghost" type="button">Clear table</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="search-panel task-preview-panel" aria-labelledby="taskPreviewTitle">
+        <div class="panel-title-row">
+          <div>
+            <h2 id="taskPreviewTitle">Preview</h2>
+            <p>This is the exact text that gets copied.</p>
+          </div>
+        </div>
+        <pre id="taskPreview" class="task-preview" aria-live="polite">TASK ACCOMPLISHED:</pre>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/assets/tasks.js?v=20260911-mask-listing" defer></script>
+  </body>
+</html>

@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A lightweight workspace for extracting multiple SHEIN and Temu products.">
+    <title>Product Extractor — Batch workspace</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=20260924-beanie">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="wordmark" href="/" aria-label="Product Extractor home">
+        <span class="wordmark-icon">S</span>
+        <span>Product Extractor</span>
+      </a>
+      <nav class="header-actions" aria-label="Application links">
+        <span id="healthStatus" class="health"><i></i><span>Connecting</span></span>
+        <a class="link-button" href="/tasks" data-short="Tasks">Task log</a>
+        <a class="link-button" href="/logo" data-short="Clean">Image cleaner</a>
+        <a class="link-button" href="/resizer" data-short="Resize">Image resizer</a>
+        <a class="link-button" href="/showcase" data-short="Showcase ↗">Showcase view ↗</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="intro">
+        <div>
+          <p class="kicker">Batch workspace</p>
+          <h1>Extract more. Click less.</h1>
+          <p class="intro-copy">Paste one or several SKUs, or full SHEIN/Temu product links. Products are processed in order and saved automatically.</p>
+        </div>
+        <div class="stat">
+          <strong id="savedCount">0</strong>
+          <span>saved products</span>
+        </div>
+      </section>
+
+      <section class="batch-tabs-shell" aria-labelledby="batchTabsTitle">
+        <div class="batch-tabs-heading">
+          <div>
+            <p class="kicker">Work batches</p>
+            <h2 id="batchTabsTitle">Choose a batch</h2>
+          </div>
+          <div class="batch-tabs-heading-actions">
+            <span>Tabs filter the saved products below. Use Open Batch when you want to view every product card.</span>
+            <div class="batch-action-buttons">
+              <button id="generateBatchDescriptionsButton" class="button button-primary" type="button">Generate all descriptions</button>
+              <button id="openDotbBatchButton" class="button button-vinteo" type="button">Open batch in Dotb</button>
+              <button id="renameBatchButton" class="button button-ghost" type="button">Rename selected</button>
+            </div>
+          </div>
+        </div>
+        <div id="batchTabs" class="batch-tabs" role="tablist" aria-label="Product batches"></div>
+      </section>
+
+      <section class="search-panel" aria-labelledby="searchTitle">
+        <div class="panel-title-row">
+          <div>
+          <h2 id="searchTitle">Product codes</h2>
+            <p>One SKU per line, or paste a full SHEIN/Temu product link instead of searching. Text after the SKU or link is saved as a note (size, colour, photo count). Pasting a Temu link skips search entirely and reads the exact page through the Brave extension, which avoids Temu's occasional false "sold out" block.</p>
+          </div>
+          <span id="skuCount" class="count-badge">0 / 20</span>
+        </div>
+        <div class="batch-workspace-bar" aria-label="Current extraction batch">
+          <div>
+            <span>Current work batch</span>
+            <strong id="currentBatchLabel">Batch 1</strong>
+            <small id="currentBatchCount">0 products</small>
+          </div>
+          <div class="batch-workspace-actions">
+            <button id="startNextBatchButton" class="button button-primary" type="button" disabled>
+              Start Batch 2
+            </button>
+            <button id="finishCurrentBatchButton" class="button button-done" type="button" disabled>
+              Done &amp; delete Batch 1
+            </button>
+          </div>
+        </div>
+        <form id="batchForm">
+          <fieldset class="store-picker">
+            <legend>Store</legend>
+            <label>
+              <input type="radio" name="store" value="shein" checked>
+              <span><strong>SHEIN</strong><small>Searches SHEIN by SKU</small></span>
+            </label>
+            <label>
+              <input type="radio" name="store" value="temu">
+              <span><strong>Temu</strong><small>Uses Temu search_key</small></span>
+            </label>
+          </fieldset>
+          <fieldset class="extraction-type-picker">
+            <legend>Product type</legend>
+            <label>
+              <input type="radio" name="itemType" value="dress" checked>
+              <span><strong>Dress</strong><small>Requires Size S</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="dress_m">
+              <span><strong>Dress M</strong><small>Requires Size M</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="skirt">
+              <span><strong>Skirt</strong><small>Size S · measurements</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="jeans">
+              <span><strong>Jeans</strong><small>Size L · measurements</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="long_boots">
+              <span><strong>Long boots</strong><small>Size 38</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="heels">
+              <span><strong>Heels</strong><small>Size 38 · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="coat">
+              <span><strong>Coat</strong><small>Size S · measurements</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="jacket">
+              <span><strong>Jacket</strong><small>Size S · measurements</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="earrings">
+              <span><strong>Earrings</strong><small>No size required</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="bag">
+              <span><strong>Bag</strong><small>No size required</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="hat">
+              <span><strong>Hat</strong><small>No size required</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="beanie">
+              <span><strong>Beanie</strong><small>One size fits all · length/width</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="mask">
+              <span><strong>Mask</strong><small>One size · length/width</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="plant">
+              <span><strong>Plant</strong><small>No size required</small></span>
+            </label>
+              <label>
+                <input type="radio" name="itemType" value="small_plant">
+                <span><strong>Small Plant</strong><small>Size S, no measurements</small></span>
+              </label>
+
+            <label>
+              <input type="radio" name="itemType" value="shelf">
+              <span><strong>Shelf</strong><small>One size · length/width</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="organizer">
+              <span><strong>Organizer</strong><small>Size S · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="lamp">
+              <span><strong>Lamp</strong><small>One size fits all · length/width</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="mirror">
+              <span><strong>Mirror</strong><small>Size S · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="sculpture">
+              <span><strong>Sculpture</strong><small>Size S · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="carpet">
+              <span><strong>Carpet</strong><small>One size fits all · length/width</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="cushion">
+              <span><strong>Cushion</strong><small>One size fits all · length/width</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="curtain">
+              <span><strong>Curtain</strong><small>Size S · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="necktie">
+              <span><strong>Necktie</strong><small>No size · length/width</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="leg_warmer">
+              <span><strong>Leg warmer</strong><small>Size S · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="jewelry_box">
+              <span><strong>Jewelry box</strong><small>Size L · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="lace_umbrella">
+              <span><strong>Lace umbrella</strong><small>Size S · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="belt">
+              <span><strong>Belt</strong><small>Size S · measurements if extracted</small></span>
+            </label>
+            <label>
+              <input type="radio" name="itemType" value="chandelier">
+              <span><strong>Chandelier</strong><small>One size fits all · length/width</small></span>
+            </label>
+          </fieldset>
+          <textarea
+            id="skuInput"
+            rows="4"
+            maxlength="4000"
+            spellcheck="false"
+            placeholder="UW256582 grey version, 4 pictures, size 38&#10;YL5345621 black&#10;https://www.temu.com/...-g-601099679573.html"
+            aria-label="Product codes"
+          ></textarea>
+          <div class="form-footer">
+            <p>SHEIN uses background Chromium. Temu uses your trusted Brave profile through the local extension.</p>
+            <div class="form-actions">
+              <button id="clearButton" class="button button-ghost" type="button">Clear</button>
+              <button id="extractButton" class="button button-primary" type="submit">
+                Extract products
+              </button>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section class="manual-price-panel" aria-labelledby="manualPriceCalculatorTitle">
+        <div class="panel-title-row">
+          <div>
+            <h2 id="manualPriceCalculatorTitle">Manual price calculator</h2>
+            <p>Pick a category and a purchase price to get the Vinted price, without extracting a product.</p>
+          </div>
+        </div>
+        <form id="manualPriceForm" class="manual-price-form">
+          <label class="category-combobox">
+            <span>Category</span>
+            <div class="combobox">
+              <input
+                id="manualPriceCategory"
+                type="text"
+                class="price-category-input"
+                placeholder="Type to search category…"
+                autocomplete="off"
+                aria-label="Price category"
+                required
+              >
+              <div id="manualPriceCategoryOptions" class="combobox-options" hidden></div>
+            </div>
+          </label>
+          <label>
+            <span>Purchase price (€)</span>
+            <input id="manualPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 12.99" required>
+          </label>
+          <button id="manualPriceButton" class="button button-primary" type="submit">Calculate</button>
+        </form>
+        <div id="manualPriceResult" class="manual-price-result" hidden></div>
+      </section>
+
+      <section id="queueSection" class="queue-section" hidden aria-labelledby="queueTitle">
+        <div class="section-title">
+          <div>
+            <p class="kicker">Current run</p>
+            <h2 id="queueTitle">Extraction queue</h2>
+          </div>
+          <span id="queueSummary" class="muted"></span>
+        </div>
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <div id="queueList" class="queue-list" aria-live="polite"></div>
+      </section>
+
+      <section id="resultsSection" class="results-section" hidden aria-labelledby="resultsTitle">
+        <div class="section-title">
+          <div>
+            <p class="kicker">Ready to review</p>
+            <h2 id="resultsTitle">Extracted products</h2>
+          </div>
+          <button id="clearResultsButton" class="button button-ghost" type="button">Clear view</button>
+        </div>
+        <div id="resultsGrid" class="results-grid"></div>
+      </section>
+
+      <section class="history-section" aria-labelledby="historyTitle">
+        <div class="section-title">
+          <div>
+            <p class="kicker">Local archive</p>
+            <h2 id="historyTitle">Recent products</h2>
+          </div>
+          <div class="inline-actions">
+            <button id="openSelectedProductsButton" class="button button-primary" type="button" disabled>Open selected</button>
+            <label class="move-batch-picker">
+              <span class="sr-only">Move selected to batch</span>
+              <select id="moveToBatchSelect" disabled>
+                <option value="">Move to batch…</option>
+              </select>
+            </label>
+            <button id="moveToBatchButton" class="button button-ghost" type="button" disabled>Move</button>
+            <button id="openAllProductsButton" class="button button-primary" type="button" disabled>Open batch</button>
+            <button id="refreshHistoryButton" class="button button-ghost" type="button">Refresh</button>
+            <button id="deleteActiveBatchButton" class="button button-done" type="button" disabled>Done &amp; delete batch</button>
+            <button id="deleteAllHistoryButton" class="button button-danger" type="button" disabled>Delete all products</button>
+          </div>
+        </div>
+        <div id="historyEmpty" class="empty-state">
+          <span>○</span>
+          <p id="historyEmptyMessage">No products saved yet.</p>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+    </main>
+
+    <div id="imagePreview" class="image-preview" role="dialog" aria-modal="true" aria-label="Product image preview" hidden>
+      <button id="closeImagePreview" class="image-preview-close" type="button" aria-label="Close image preview">×</button>
+      <button id="previousPreviewImage" class="image-preview-arrow previous" type="button" aria-label="Previous product image">‹</button>
+      <figure>
+        <img id="previewImage" alt="Full-size product preview">
+        <figcaption id="previewImageCount"></figcaption>
+      </figure>
+      <button id="nextPreviewImage" class="image-preview-arrow next" type="button" aria-label="Next product image">›</button>
+    </div>
+    <div id="imageGenerateModal" class="image-generate-modal" role="dialog" aria-modal="true" aria-label="Generate product image" hidden>
+      <div class="image-generate-card">
+        <button id="closeImageGenerate" class="image-generate-close" type="button" aria-label="Close">&times;</button>
+        <div class="image-generate-header">
+          <span>Vertex AI</span>
+          <h3>Generate product image</h3>
+          <p>Gemini-style edit chat: attach references, type naturally, then send follow-ups.</p>
+        </div>
+        <section id="imageSourcePanel" class="image-source-panel" hidden>
+          <div>
+            <span>Selected source dress</span>
+            <strong>This is the product image Vertex will use</strong>
+          </div>
+          <img id="imageSourcePreview" alt="Selected product source">
+          <div id="imageSourceThumbs" class="image-source-thumbs" aria-label="Choose source product image"></div>
+        </section>
+        <label class="image-preset-field">
+          <span>Prompt preset</span>
+          <select id="imagePromptPreset" aria-label="Image prompt preset">
+            <option value="">Custom prompt</option>
+            <option value="mannequinFront">Mannequin front</option>
+            <option value="sideView">Side view</option>
+            <option value="backView">Back view</option>
+            <option value="modelReplace">Replace girl clothes</option>
+            <option value="floorFront">Floor front</option>
+            <option value="floorBack">Floor back</option>
+          </select>
+        </label>
+        <p id="imagePresetHint" class="image-preset-hint" hidden></p>
+        <label class="image-prompt-field">
+          <span>Message to Vertex</span>
+          <textarea id="imagePrompt" rows="4" placeholder="Example: place this dress on the mannequin, keep the room the same" aria-label="Image prompt"></textarea>
+        </label>
+        <section class="image-control-panel" aria-label="Image generation control">
+          <div class="image-strength-row">
+            <div>
+              <span>Prompt lock</span>
+              <strong id="imagePromptStrengthValue">95%</strong>
+            </div>
+            <input id="imagePromptStrength" type="range" min="0" max="100" value="95" aria-label="Prompt lock strength">
+          </div>
+          <small>Higher = less creative, more strict. Use 90–100 for mannequin product edits.</small>
+          <label class="image-negative-field">
+            <span>Strong negatives</span>
+            <textarea id="imageNegativePrompt" rows="3" aria-label="Negative prompt">no human hands, no human arms, no fingers, no skin, no face, no hair, no feet, no shoes, no bag, no jewelry, no floating body parts, no extra person, no changed background, no warped mannequin stand, no changed wooden neck knob, no changed floor, no changed furniture, no blur, no crop, no zoom, no text, no watermark, no logo</textarea>
+          </label>
+        </section>
+        <div id="imageConversationLog" class="image-conversation-log" aria-live="polite">
+          <div class="image-chat-empty">No messages yet. Send a prompt like you would in Gemini.</div>
+        </div>
+        <label class="image-reference-picker">
+          <input id="imageReferenceInput" type="file" accept="image/*">
+          <span>
+            <strong>Add mannequin / scene reference</strong>
+            <small>Upload a photo like your black mannequin room, then prompt: place the dress on the mannequin.</small>
+          </span>
+        </label>
+        <div id="imageReferencePreview" class="image-reference-preview" hidden>
+          <img id="imageReferencePreviewImg" alt="Reference image preview">
+          <button id="clearImageReference" type="button">Remove reference</button>
+        </div>
+        <label class="image-reference-picker">
+          <input id="imageGuideInput" type="file" accept="image/*">
+          <span>
+            <strong>Add optional guide reference</strong>
+            <small>Use this as your “3rd image only” for length, width, side/back direction, or floor placement.</small>
+          </span>
+        </label>
+        <div id="imageGuidePreview" class="image-reference-preview" hidden>
+          <img id="imageGuidePreviewImg" alt="Guide image preview">
+          <button id="clearImageGuide" type="button">Remove guide</button>
+        </div>
+        <label class="image-reference-picker">
+          <input id="imageExampleInput" type="file" accept="image/*">
+          <span>
+            <strong>Add example result reference</strong>
+            <small>Upload a good Gemini.com result like your realistic mannequin image, so Vertex can match that quality.</small>
+          </span>
+        </label>
+        <div id="imageExamplePreview" class="image-reference-preview" hidden>
+          <img id="imageExamplePreviewImg" alt="Example result preview">
+          <button id="clearImageExample" type="button">Remove example</button>
+        </div>
+        <div id="imageOptions" class="image-options" aria-label="Image style">
+          <span class="image-options-title">Optional style for custom prompts</span>
+          <label><input type="radio" name="imageStyle" value="mockup" checked><span>Mockup</span></label>
+          <label><input type="radio" name="imageStyle" value="vinted"><span>Vinted</span></label>
+          <label><input type="radio" name="imageStyle" value="catalog"><span>Catalog</span></label>
+          <label><input type="radio" name="imageStyle" value="lifestyle"><span>Lifestyle</span></label>
+        </div>
+        <div class="image-generate-actions">
+          <button id="generateImageButton" class="button button-primary" type="button">Send to Vertex</button>
+          <button id="retryImageGeneration" class="button button-ghost" type="button" hidden>Retry</button>
+          <button id="resetImageConversation" class="button button-ghost" type="button">New chat</button>
+          <a id="generatedImageLink" class="generated-image-result" href="#" target="_blank" rel="noopener noreferrer" hidden></a>
+        </div>
+      </div>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/assets/app.js?v=20260924-beanie" defer></script>
+  </body>
+</html>

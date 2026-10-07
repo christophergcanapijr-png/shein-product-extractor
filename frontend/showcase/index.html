@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Extract verified SHEIN product data and prepare bilingual resale listings.">
+    <title>SHEIN Product Extractor</title>
+    <link rel="stylesheet" href="/assets/showcase/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="SHEIN Product Extractor home">
+          <span class="brand-mark" aria-hidden="true">S</span>
+          <span>
+            <strong>Product Extractor</strong>
+            <small>Verified details. Ready-to-list copy.</small>
+          </span>
+        </a>
+        <div class="health-pill" id="healthPill">
+          <span class="health-dot"></span>
+          <span id="healthText">Checking server</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="heroTitle">
+          <div class="eyebrow">Your resale listing workspace</div>
+          <h1 id="heroTitle">From a product code to a polished listing.</h1>
+          <p>Pull original SHEIN product images and Size S measurements, then create English and French listing copy.</p>
+
+          <form id="extractForm" class="extract-form" novalidate>
+            <label for="skuInput">Product code</label>
+            <div class="input-row">
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">#</span>
+                <input
+                  id="skuInput"
+                  name="sku"
+                  type="text"
+                  maxlength="100"
+                  autocomplete="off"
+                  placeholder="Paste a SHEIN product code"
+                  required
+                >
+              </div>
+              <button id="extractButton" class="button button-primary button-large" type="submit">
+                <span>Extract Product</span>
+                <span class="button-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+          </form>
+
+          <div id="statusPanel" class="status-panel" hidden aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <div>
+              <strong id="statusTitle">Searching SHEIN</strong>
+              <p id="statusMessage">Opening SHEIN for an exact product-code match…</p>
+            </div>
+          </div>
+
+          <div id="errorPanel" class="error-panel" hidden role="alert">
+            <div class="error-symbol" aria-hidden="true">!</div>
+            <div class="error-copy">
+              <strong id="errorTitle">Extraction interrupted</strong>
+              <p id="errorMessage"></p>
+              <div id="candidateList" class="candidate-list"></div>
+            </div>
+            <button id="retryButton" class="button button-secondary" type="button" hidden>Retry</button>
+          </div>
+        </section>
+
+        <section id="productSection" class="product-section" hidden aria-labelledby="productTitle">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">Product preview</div>
+              <h2 id="productTitle">Extracted product</h2>
+            </div>
+            <div class="heading-actions">
+              <button id="refreshButton" class="button button-secondary" type="button">↻ Refresh product</button>
+              <span id="savedBadge" class="saved-badge">Saved locally</span>
+            </div>
+          </div>
+
+          <div class="product-layout">
+            <article class="image-card">
+              <div class="image-stage">
+                <img id="mainImage" alt="" crossorigin="anonymous">
+                <span id="imageFallbackBadge" class="image-badge" hidden>Element capture</span>
+              </div>
+              <div class="image-actions">
+                <button id="copyImageButton" class="button button-primary" type="button">Copy Image</button>
+                <button id="downloadImageButton" class="button button-secondary" type="button">Download Image</button>
+                <button id="copyImageUrlButton" class="button button-quiet" type="button">Copy Image URL</button>
+                <button id="openImageButton" class="button button-quiet" type="button">Open Original Image</button>
+                <button id="openProductButton" class="button button-quiet" type="button">Open Product</button>
+              </div>
+              <div>
+                <div class="subheading-row">
+                  <h3>Additional images</h3>
+                  <span id="imageCount">0 images</span>
+                </div>
+                <div id="thumbnailGrid" class="thumbnail-grid"></div>
+              </div>
+            </article>
+
+            <article class="details-card">
+              <div class="sku-line"><span>SHEIN code</span><code id="productSku"></code></div>
+              <h2 id="detailTitle"></h2>
+              <a id="productUrl" class="product-link" target="_blank" rel="noopener noreferrer">View source product ↗</a>
+              <dl class="product-facts">
+                <div><dt>Colour</dt><dd id="productColour">—</dd></div>
+                <div><dt>Material</dt><dd id="productMaterial">—</dd></div>
+                <div><dt>Category</dt><dd id="productCategory">—</dd></div>
+                <div><dt>Size</dt><dd><span class="size-chip">S</span></dd></div>
+              </dl>
+              <div class="measurements-block">
+                <div class="subheading-row">
+                  <h3>Verified measurements</h3>
+                  <span id="measurementType"></span>
+                </div>
+                <div id="measurementGrid" class="measurement-grid"></div>
+                <p id="measurementNote" class="measurement-note"></p>
+              </div>
+            </article>
+          </div>
+
+          <article class="listing-card">
+            <div class="listing-card-head">
+              <div>
+                <div class="eyebrow">AI writing assistant</div>
+                <h2>Bilingual listing copy</h2>
+                <p>Choose the item type so the title, condition line, hashtags, and fictional brand follow the correct format.</p>
+              </div>
+              <div class="generation-controls">
+                <fieldset id="listingTypePicker" class="listing-type-picker">
+                  <legend>Description type</legend>
+                  <label>
+                    <input type="radio" name="listingType" value="dress" checked>
+                    <span>Dress</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="dress_m">
+                    <span>Dress M</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="skirt">
+                    <span>Skirt</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="jeans">
+                    <span>Jeans</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="long_boots">
+                    <span>Long boots</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="heels">
+                    <span>Heels</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="coat">
+                    <span>Coat</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="jacket">
+                    <span>Jacket</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="earrings">
+                    <span>Earrings</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="bag">
+                    <span>Bag</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="hat">
+                    <span>Hat</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="mask">
+                    <span>Mask</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="plant">
+                    <span>Plant</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="listingType" value="shelf">
+                    <span>Shelf</span>
+                  </label>
+                </fieldset>
+                <button id="generateButton" class="button button-primary button-large" type="button">Generate Description</button>
+              </div>
+            </div>
+            <div id="listingEmpty" class="listing-empty">
+              <span aria-hidden="true">Aa</span>
+              <p>Generate editable English and French listings when you’re ready.</p>
+            </div>
+            <div id="listingColumns" class="listing-columns" hidden>
+              <section class="language-panel" data-language="english">
+                <div class="language-heading">
+                  <div><span class="language-code">EN</span><h3>English listing</h3></div>
+                  <button class="button button-quiet regenerate-button" type="button">↻ Regenerate</button>
+                </div>
+                <label>Title <span>100 characters max</span></label>
+                <textarea id="englishTitle" class="title-editor" maxlength="100" rows="2"></textarea>
+                <div class="editor-actions">
+                  <button class="text-button copy-title" type="button">Copy Title</button>
+                </div>
+                <label>Description</label>
+                <textarea id="englishDescription" rows="10"></textarea>
+                <div class="editor-actions">
+                  <button class="text-button copy-description" type="button">Copy Description</button>
+                  <button class="button button-secondary copy-full" type="button">Copy Full Listing</button>
+                </div>
+                <div id="englishHashtags" class="hashtag-editor" contenteditable="true" role="textbox" aria-label="English hashtags"></div>
+              </section>
+
+              <section class="language-panel" data-language="french">
+                <div class="language-heading">
+                  <div><span class="language-code">FR</span><h3>French listing</h3></div>
+                  <button class="button button-quiet regenerate-button" type="button">↻ Regenerate</button>
+                </div>
+                <label>Titre <span>100 caractères max.</span></label>
+                <textarea id="frenchTitle" class="title-editor" maxlength="100" rows="2"></textarea>
+                <div class="editor-actions">
+                  <button class="text-button copy-title" type="button">Copy Title</button>
+                </div>
+                <label>Description</label>
+                <textarea id="frenchDescription" rows="10"></textarea>
+                <div class="editor-actions">
+                  <button class="text-button copy-description" type="button">Copy Description</button>
+                  <button class="button button-secondary copy-full" type="button">Copy Full Listing</button>
+                </div>
+                <div id="frenchHashtags" class="hashtag-editor" contenteditable="true" role="textbox" aria-label="French hashtags"></div>
+              </section>
+            </div>
+            <div id="fictionalBrand" class="fictional-brand" hidden>
+              <span id="fictionalBrandLabel">Fictional brand</span>
+              <strong id="fictionalBrandName"></strong>
+            </div>
+          </article>
+        </section>
+
+        <section class="history-section" aria-labelledby="historyTitle">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">Local archive</div>
+              <h2 id="historyTitle">Recent products</h2>
+            </div>
+            <div class="history-heading-actions">
+              <button id="reloadHistoryButton" class="button button-secondary" type="button">↻ Reload</button>
+              <button id="deleteAllHistoryButton" class="button button-danger" type="button" disabled>Delete all products</button>
+            </div>
+          </div>
+          <div id="historyEmpty" class="history-empty">
+            <span aria-hidden="true">□</span>
+            <h3>No products yet</h3>
+            <p>Your extracted products will appear here for quick access.</p>
+          </div>
+          <div id="historyGrid" class="history-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/assets/showcase/app.js?v=20260911-shelf-listing" defer></script>
+  </body>
+</html>

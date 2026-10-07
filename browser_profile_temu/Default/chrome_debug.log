@@ -1,0 +1,11 @@
+[0729/035014.907:INFO:CONSOLE:4] "Workbox is precaching URLs without revision info: https://aimg.kwcdn.com/upload_aimg/bg-img/a158f74c-cdd0-44a6-8064-ac410c054974.gif
+This is generally NOT safe. Learn more at https://bit.ly/wb-precache", source: https://www.temu.com/sw.js (4)
+[0729/035020.775:INFO:CONSOLE:1] "Initialization of sharing external failed: TypeError: Cannot read properties of undefined (reading 'call')", source: https://static.kwcdn.com/m-assets/assets/js/react_webpack_runtime_cc789ded74cdd02c.js (1)
+[0729/035020.946:INFO:CONSOLE:1] "29/07/2026 03:50:20 29/07/2026 03:50:20 [object HTMLDivElement] [object NodeList]", source: https://static.kwcdn.com/m-assets/assets/js/biz_vendors_57a5ab75ab0f85d6.js (1)
+[0729/035021.658:INFO:CONSOLE:1] "Uncaught AxiosError: Request failed with status code 403", source: https://static.kwcdn.com/m-assets/assets/js/vendors_a8473ba27b32d843.js (1)
+[0729/035021.661:INFO:CONSOLE:1] "Uncaught AxiosError: Request failed with status code 403", source: https://static.kwcdn.com/m-assets/assets/js/vendors_a8473ba27b32d843.js (1)
+[0729/035021.672:INFO:CONSOLE:1] "Uncaught Error: unknown biz error", source: https://static.kwcdn.com/m-assets/assets/js/vendors_a8473ba27b32d843.js (1)
+[0729/035021.736:INFO:CONSOLE:1] "Uncaught AxiosError: Request failed with status code 429", source: https://static.kwcdn.com/m-assets/assets/js/vendors_a8473ba27b32d843.js (1)
+[0729/035021.856:INFO:CONSOLE:1] "Uncaught AxiosError: Request failed with status code 429", source: https://static.kwcdn.com/m-assets/assets/js/vendors_a8473ba27b32d843.js (1)
+[0729/035022.057:INFO:CONSOLE:1] "29/07/2026 03:50:22 29/07/2026 03:50:22 [object HTMLDivElement] [object NodeList]", source: https://static.kwcdn.com/m-assets/assets/js/5472_d11c37d483a48b268527.js (1)
+[0729/035024.827:INFO:CONSOLE:0] "[.WebGL-0x37e40298bc00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels", source: https://www.temu.com/search_result.html?search_key=92M205QVKV&search_method=user&is_back=1 (0)

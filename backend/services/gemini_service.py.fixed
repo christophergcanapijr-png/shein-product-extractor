@@ -1,0 +1,715 @@
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import mimetypes
+import re
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from backend.config import settings
+from backend.errors import AppError
+from backend.schemas import ListingPair, ListingVersion
+from backend.services.image_service import fetch_image
+
+
+logger = logging.getLogger(__name__)
+
+BASE_INSTRUCTIONS = """
+You write polished Vinted-style resale listings from the verified product facts
+and product image supplied by the application. Return one English listing, one
+fully French listing, and one newly coined fictional brand name.
+
+Rules shared by every listing:
+- Return only the requested structured JSON.
+- Titles must be exactly one natural-sounding line, contain no material/fabric,
+  and target 65 to 95 characters without ever exceeding 100 characters.
+- Never invent or add a detail merely to make a title longer.
+- Keep the literal word "style" in both English and French titles.
+- Descriptions must not mention material/fabric.
+- The English condition line must be exactly "Perfect condition."
+- The French condition line must be exactly "Parfait état."
+- Each language must have 20 to 25 relevant hashtags.
+- Hashtags must not use Vinted, France, new, brandnew, unused, neuf, neuve,
+  nouveau, nouvelle, or close synonyms of those words.
+- Do not invent measurements or factual product features. Use a measurement
+  only when it appears in the verified facts.
+- The fictional_brand must be one professional-sounding invented word with no
+  spaces. Coin a new name rather than using a known brand.
+- Do not generate an image. The supplied image is reference input only.
+"""
+
+DRESS_INSTRUCTIONS = """
+Listing type: DRESS
+
+For each title, follow this exact order:
+1. item category with visible/relevant details;
+2. colour;
+3. the word "style" followed by one or more best-matching choices from only:
+   boho, bohemian, elegant, old money, y2k, gothic, streetwear, grunge,
+   dark academia, sophisticated;
+4. size S (never size 36).
+
+For each description:
+- First line: repeat that language's title exactly.
+- Blank line followed by one concise Size S measurement line containing every
+  value supplied in verified_measurements. Keep every number and range exactly
+  as extracted.
+- Do not add a descriptive paragraph.
+- Blank line.
+- Final line: the exact required condition sentence.
+- Never invent, round, convert, or omit an extracted measurement.
+"""
+
+EARRINGS_INSTRUCTIONS = """
+Listing type: EARRINGS
+
+For each title, follow this exact order:
+1. earrings category with specific visible/relevant details such as drop,
+   floral, hoop, statement, or shape when supported;
+2. colour;
+3. the word "style" followed by one or more best-matching choices from only:
+   boho, bohemian, elegant, western, cowboy, y2k, gothic, streetwear, grunge,
+   Wild West, cowgirl, sophisticated;
+4. one size fits all in English, or taille unique in French.
+
+For each description:
+- First line: repeat that language's title exactly.
+- If verified earring length or width is supplied, add a blank line followed
+  by one concise measurement line containing only those verified values.
+- Add a blank line followed by the exact required condition sentence.
+- Never output XX placeholders or invent missing measurements.
+"""
+
+BAG_INSTRUCTIONS = """
+Listing type: BAG
+
+For each title, follow this exact order:
+1. bag category with specific visible/relevant details such as shoulder bag,
+   handbag, tote, crossbody, clutch, or shape when supported;
+2. colour;
+3. the word "style" followed by one or more best-matching choices from only:
+   boho, bohemian, elegant, old money, y2k, gothic, streetwear, grunge,
+   dark academia, sophisticated.
+
+For each description:
+- First line: repeat that language's title exactly.
+- Do not add a size or measurement line.
+- Add a blank line followed by the exact required condition sentence.
+- Never output XX placeholders or invent missing measurements.
+"""
+
+SKIRT_INSTRUCTIONS = """
+Listing type: SKIRT
+
+For each title, follow this exact order:
+1. skirt category with specific visible details such as long, midi, mini,
+   pleated, wrap, asymmetric, or printed when supported;
+2. colour;
+3. the literal word "style" followed by one or more best-matching choices
+   from only: boho, bohemian, elegant, old money, y2k, gothic, streetwear,
+   grunge, dark academia, sophisticated;
+4. size S (never size 36).
+
+For each description:
+- First line: repeat that language's title exactly.
+- Add one concise Size S measurement block containing every value supplied in
+  verified_measurements. Keep every number and range exactly as extracted.
+- Do not add a descriptive paragraph.
+- Do not add material/fabric or invent missing measurements.
+- Add a blank line followed by the exact required condition sentence.
+
+For the fictional_brand schema field, return exactly one of these clothing
+style tokens instead of a brand: boho, bohemian, chic, elegant, oldmoney, y2k,
+goth, street, grunge, dark.
+"""
+
+FAST_BASE_INSTRUCTIONS = """
+Create a detailed bilingual Vinted listing draft from verified product facts.
+Return only structured JSON containing fictional_brand, english_title,
+french_title, english_description, french_description, english_hashtags,
+and french_hashtags.
+
+Rules:
+- Titles are one natural-sounding line, target 65 to 95 characters, never
+  exceed 100 characters, contain no material/fabric, and include the literal
+  word "style" in both English and French.
+- Use only the strongest verified category, colour, visible detail, and style.
+  Never stack keywords, repeat a feature, or invent filler to reach a length.
+- Use this natural structure as the model:
+  "Long cream white trench coat in an elegant style with an S-size belt".
+- Return 20 to 22 highly item-specific hashtags per language.
+- Hashtags must not use Vinted, France, new, unused, neuf, neuve, nouveau,
+  nouvelle, or synonyms.
+- Use only verified facts and visible details. Do not invent features.
+- The supplied product image is authoritative for the garment colour and
+  visible design. Extracted page text can describe a different colour variant;
+  never use a text colour that conflicts with the visible product image.
+- fictional_brand is one newly coined professional word with no spaces.
+- Follow the selected listing type's description rule. Return empty
+  description strings when that type forbids a descriptive paragraph.
+- Do not generate an image.
+"""
+
+FAST_TYPE_INSTRUCTIONS = {
+    "dress": """
+DRESS titles, in order: detailed item category; colour; the word style plus
+one or more of boho, bohemian, elegant, old money, y2k, gothic, streetwear,
+grunge, dark academia, sophisticated; size S (never size 36).
+The French title must put the category before the length adjective: write
+"Robe longue", never "Longue robe". Return empty strings for
+english_description and french_description; the listing must not contain a
+descriptive paragraph.
+Write each title as one natural product sentence, not a comma-separated list.
+Good pattern: "Long black off-shoulder dress in an elegant gothic style, size
+S". Both titles must be factual and between 65 and 100 characters.
+""",
+    "skirt": """
+SKIRT titles, in order: specific skirt category/details; colour; the literal
+word style plus one or more of boho, bohemian, elegant, old money, y2k,
+gothic, streetwear, grunge, dark academia, sophisticated; size S (never size
+36). Return empty strings for english_description and french_description; the
+listing must not contain a descriptive paragraph. In the fictional_brand
+field, return exactly one clothing style token from: boho, bohemian, chic,
+elegant, oldmoney, y2k, goth, street, grunge, dark.
+Use concise, natural wording with the exact selected length. A good French
+pattern is: "Jupe longue à sequins bleu turquoise, style élégant Y2K, taille
+S". Generate 20 to 22 hashtags that describe the actual skirt, colour,
+decoration, length, and chosen styles rather than generic filler.
+Write each title as one natural product sentence, not a keyword list.
+Both titles must be factual and between 65 and 100 characters.
+""",
+    "earrings": """
+EARRINGS titles, in order: specific earrings category/details; colour; the
+word style plus one or more of boho, bohemian, elegant, western, cowboy, y2k,
+gothic, streetwear, grunge, Wild West, cowgirl, sophisticated; one size fits
+all in English or taille unique in French.
+""",
+    "bag": """
+BAG titles, in order: specific bag category/details; colour; the word style
+plus one or more of boho, bohemian, elegant, old money, y2k, gothic,
+streetwear, grunge, dark academia, sophisticated.
+""",
+}
+
+
+class FastListingDraft(BaseModel):
+    fictional_brand: str = Field(min_length=3, max_length=30)
+    english_title: str = Field(min_length=65, max_length=100)
+    french_title: str = Field(min_length=65, max_length=100)
+    english_description: str = Field(default="", max_length=1_200)
+    french_description: str = Field(default="", max_length=1_200)
+    english_hashtags: list[str] = Field(min_length=5, max_length=25)
+    french_hashtags: list[str] = Field(min_length=5, max_length=25)
+
+    @field_validator("fictional_brand")
+    @classmethod
+    def normalize_brand(cls, value: str) -> str:
+        return "".join(value.split())
+
+    @field_validator("english_title", "french_title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        return " ".join(value.split())
+
+
+ENGLISH_MEASUREMENT_LABELS = {
+    "Poitrine": "Bust",
+    "Tour de taille": "Waist",
+    "Hanches": "Hips",
+    "Longueur": "Length",
+    "Largeur": "Width",
+    "Longueur des manches": "Sleeve length",
+    "Longueur des brides": "Strap length",
+    "Carrure": "Shoulder width",
+    "Tour de bras": "Arm circumference",
+    "Tour de poignet": "Wrist circumference",
+    "Cuisse": "Thigh",
+    "Entrejambe": "Inseam",
+}
+
+FALLBACK_HASHTAGS = {
+    "dress": {
+        "english": [
+            "#dress", "#womensdress", "#sizeS", "#elegantstyle", "#fashion",
+            "#outfit", "#wardrobe", "#chic", "#occasionwear", "#eveninglook",
+            "#daydress", "#mididress", "#feminine", "#styleinspiration",
+            "#womensfashion", "#dressstyle", "#closetstyle", "#fashionlook",
+            "#outfitinspiration", "#sophisticatedstyle",
+        ],
+        "french": [
+            "#robe", "#robefemme", "#tailleS", "#styleelegant", "#mode",
+            "#tenue", "#garderobe", "#chic", "#tenueoccasion", "#lookdusoir",
+            "#robedujour", "#robemidi", "#feminin", "#inspirationstyle",
+            "#modefemme", "#stylerobe", "#styledressing", "#lookmode",
+            "#inspirationtenue", "#stylesophistique",
+        ],
+    },
+    "earrings": {
+        "english": [
+            "#earrings", "#womensearrings", "#jewellery", "#accessories",
+            "#earringstyle", "#statementearrings", "#fashionjewellery",
+            "#accessorystyle", "#elegantstyle", "#chic", "#jewellerylover",
+            "#outfitaccessories", "#womensfashion", "#styleinspiration",
+            "#earringlover", "#jewellerystyle", "#fashionaccessory",
+            "#sophisticatedstyle", "#giftidea", "#oneSize",
+        ],
+        "french": [
+            "#bouclesdoreilles", "#bijouxfemme", "#bijoux", "#accessoires",
+            "#stylebijoux", "#bouclesstatement", "#bijouxfantaisie",
+            "#styleaccessoire", "#styleelegant", "#chic", "#passionbijoux",
+            "#accessoiretenue", "#modefemme", "#inspirationstyle",
+            "#bouclesfemme", "#stylebijou", "#accessoiremode",
+            "#stylesophistique", "#ideecadeau", "#tailleunique",
+        ],
+    },
+    "skirt": {
+        "english": [
+            "#skirt", "#womensskirt", "#sizeS", "#skirtstyle", "#fashion",
+            "#outfit", "#wardrobe", "#chic", "#elegantstyle", "#daylook",
+            "#eveninglook", "#feminine", "#styleinspiration", "#womensfashion",
+            "#outfitinspiration", "#fashionlook", "#skirtsizeS", "#styledlook",
+            "#sophisticatedstyle", "#closetstyle",
+        ],
+        "french": [
+            "#jupe", "#jupefemme", "#tailleS", "#stylejupe", "#mode",
+            "#tenue", "#garderobe", "#chic", "#styleelegant", "#lookdujour",
+            "#lookdusoir", "#feminin", "#inspirationstyle", "#modefemme",
+            "#inspirationtenue", "#lookmode", "#jupetailleS", "#tenuestylee",
+            "#stylesophistique", "#styledressing",
+        ],
+    },
+    "bag": {
+        "english": [
+            "#bag", "#womensbag", "#handbag", "#shoulderbag", "#accessories",
+            "#bagstyle", "#fashionaccessory", "#elegantstyle", "#chic",
+            "#everydaybag", "#outfitaccessories", "#womensfashion",
+            "#styleinspiration", "#crossbodybag", "#tote", "#pursestyle",
+            "#accessorystyle", "#sophisticatedstyle", "#wardrobe", "#fashionlook",
+        ],
+        "french": [
+            "#sac", "#sacfemme", "#sacmain", "#sacbandouliere", "#accessoires",
+            "#stylesac", "#accessoiremode", "#styleelegant", "#chic",
+            "#sacquotidien", "#accessoiretenue", "#modefemme",
+            "#inspirationstyle", "#saccroise", "#cabas", "#styleaccessoire",
+            "#sacchic", "#stylesophistique", "#garderobe", "#lookmode",
+        ],
+    },
+}
+
+FORBIDDEN_HASHTAGS = {
+    "vinted",
+    "france",
+    "new",
+    "brandnew",
+    "unused",
+    "unworn",
+    "neverused",
+    "jamaisporte",
+    "jamaisportee",
+    "neuf",
+    "neuve",
+    "nouveau",
+    "nouvelle",
+}
+
+
+def _clean_draft_hashtags(values: list[str]) -> list[str]:
+    cleaned: list[str] = []
+    for value in values:
+        tag = "#" + value.strip().lstrip("#").replace(" ", "")
+        normalized = tag[1:].casefold()
+        if (
+            tag == "#"
+            or any(
+                normalized == word
+                or normalized.startswith(word)
+                or normalized.endswith(word)
+                for word in FORBIDDEN_HASHTAGS
+            )
+            or tag in cleaned
+        ):
+            continue
+        cleaned.append(tag)
+    return cleaned
+
+
+def _ensure_twenty_hashtags(
+    values: list[str], listing_type: str, language: str
+) -> list[str]:
+    completed = list(dict.fromkeys(values))
+    if len(completed) >= 20:
+        return completed[:25]
+    for fallback in FALLBACK_HASHTAGS[listing_type][language]:
+        if fallback not in completed:
+            completed.append(fallback)
+        if len(completed) >= 20:
+            break
+    return completed[:25]
+
+
+def listing_from_fast_draft(
+    draft: FastListingDraft,
+    listing_type: str,
+) -> ListingPair:
+    english_tags = _ensure_twenty_hashtags(
+        _clean_draft_hashtags(draft.english_hashtags),
+        listing_type,
+        "english",
+    )
+    french_tags = _ensure_twenty_hashtags(
+        _clean_draft_hashtags(draft.french_hashtags),
+        listing_type,
+        "french",
+    )
+    output_label = draft.fictional_brand
+    if listing_type == "skirt":
+        style_source = " ".join(
+            (
+                draft.fictional_brand,
+                draft.english_title,
+                draft.french_title,
+                draft.english_description,
+                draft.french_description,
+            )
+        ).casefold()
+        style_aliases = (
+            ("old money", "oldmoney"),
+            ("oldmoney", "oldmoney"),
+            ("bohemian", "bohemian"),
+            ("boho", "boho"),
+            ("chic", "chic"),
+            ("elegant", "elegant"),
+            ("y2k", "y2k"),
+            ("gothic", "goth"),
+            ("goth", "goth"),
+            ("streetwear", "street"),
+            ("street", "street"),
+            ("grunge", "grunge"),
+            ("dark academia", "dark"),
+            ("dark", "dark"),
+        )
+        output_label = next(
+            (
+                normalized
+                for keyword, normalized in style_aliases
+                if keyword in style_source
+            ),
+            "elegant",
+        )
+    return ListingPair(
+        fictional_brand=output_label,
+        english=ListingVersion(
+            title=draft.english_title,
+            description=draft.english_description,
+            hashtags=english_tags,
+        ),
+        french=ListingVersion(
+            title=draft.french_title,
+            description=draft.french_description,
+            hashtags=french_tags,
+        ),
+    )
+
+
+def facts_are_descriptive_enough(product: dict[str, Any]) -> bool:
+    title = " ".join(str(product.get("title") or "").split())
+    category = str(product.get("category") or "").strip()
+    colour = str(product.get("colour") or "").strip()
+    details = product.get("additional_details") or {}
+    has_detail = any(details.get(key) for key in ("style", "pattern", "season"))
+    return len(title) >= 45 and bool(category or colour or has_detail)
+
+
+def _normalize_french_dress_title(value: str) -> str:
+    """Keep the French category first: 'Robe longue', never 'Longue robe'."""
+    words = value.split()
+    robe_index = next(
+        (index for index, word in enumerate(words) if word.casefold() == "robe"),
+        None,
+    )
+    if robe_index is None:
+        return value
+    has_longue = any(word.casefold() == "longue" for word in words)
+    remaining = [
+        word
+        for index, word in enumerate(words)
+        if index != robe_index and not (
+            has_longue and word.casefold() == "longue"
+        )
+    ]
+    prefix = ["Robe"] + (["longue"] if has_longue else [])
+    return " ".join(prefix + remaining)
+
+
+def _normalize_english_skirt_title(
+    value: str,
+    preferred_length: str | None = None,
+) -> str:
+    value = re.sub(r"\b(?:size|taille)\s*(?:S|36)\b", "", value, flags=re.I)
+    words = value.split()
+    length_words = ("long", "midi", "short", "mini")
+    remaining = [
+        word for word in words if word.casefold() not in length_words
+    ]
+    if preferred_length:
+        prefix = "Long" if preferred_length == "long" else "Midi"
+        remaining.insert(0, prefix)
+    return " ".join(remaining)
+
+
+def _normalize_french_skirt_title(
+    value: str,
+    preferred_length: str | None = None,
+) -> str:
+    value = re.sub(r"\b(?:size|taille)\s*(?:S|36)\b", "", value, flags=re.I)
+    words = value.split()
+    skirt_index = next(
+        (index for index, word in enumerate(words) if word.casefold() == "jupe"),
+        None,
+    )
+    if skirt_index is None:
+        return value
+    length_words = ("longue", "midi", "courte", "mini")
+    length = (
+        "longue" if preferred_length == "long" else "midi"
+        if preferred_length == "midi"
+        else next(
+            (
+                word.casefold()
+                for word in words
+                if word.casefold() in length_words
+            ),
+            None,
+        )
+    )
+    remaining = [
+        word
+        for index, word in enumerate(words)
+        if index != skirt_index and word.casefold() not in length_words
+    ]
+    return " ".join(["Jupe"] + ([length] if length else []) + remaining)
+
+
+def _ensure_skirt_size_s(value: str, language: str) -> str:
+    value = re.sub(
+        r"\b(?:size|taille)\s*(?:S|36)\b|\bS[- ]size\b",
+        "",
+        value,
+        flags=re.I,
+    )
+    suffix = "taille S" if language == "french" else "size S"
+    cleaned = " ".join(value.split()).rstrip(" ,;:-")
+    maximum_base_length = 100 - len(suffix) - 1
+    return f"{cleaned[:maximum_base_length].rstrip(' ,;:-')} {suffix}"
+
+
+def _clean_description_body(value: str, title: str) -> str:
+    condition_phrases = ("Perfect condition.", "Parfait Ã©tat.")
+    blocks = [
+        " ".join(block.split())
+        for block in value.replace("\r", "").split("\n")
+        if block.strip()
+    ]
+    kept = [
+        block
+        for block in blocks
+        if block.casefold() != title.casefold()
+        and block not in condition_phrases
+    ]
+    body = " ".join(kept)
+    for phrase in condition_phrases:
+        body = body.replace(phrase, "").strip()
+    return " ".join(body.split())
+
+
+def _dress_fallback_paragraph(language: str) -> str:
+    if language == "french":
+        return (
+            "Cette robe taille S offre une allure soignée et distinctive, "
+            "fidèle aux détails visibles sur l'article original. Sa coupe, sa "
+            "silhouette et sa couleur permettent de composer facilement une "
+            "tenue élégante pour le quotidien, une soirée ou une occasion "
+            "spéciale. Elle s'associe aussi bien à des accessoires discrets "
+            "qu'à des pièces plus affirmées selon le style recherché. Sa "
+            "silhouette équilibrée se porte facilement avec des talons, des "
+            "bottines ou des bijoux discrets, tout en laissant les détails "
+            "visibles occuper le premier plan de la tenue."
+        )
+    return (
+        "This Size S dress offers a polished and distinctive look that stays "
+        "faithful to the details visible on the original item. Its cut, "
+        "silhouette, and colour make it easy to style for everyday outfits, "
+        "evenings, or special occasions. Pair it with understated accessories "
+        "for a refined finish or stronger statement pieces for a more "
+        "expressive look. The balanced shape works easily with heels, boots, "
+        "or minimal jewellery, while the visible design remains the main "
+        "focus of the finished outfit."
+    )
+
+
+def _skirt_fallback_paragraph(language: str) -> str:
+    if language == "french":
+        return (
+            "Cette jupe taille S prÃ©sente une allure soignÃ©e qui met en valeur "
+            "les dÃ©tails visibles de l'article. Sa coupe, sa silhouette et sa "
+            "couleur permettent de crÃ©er facilement une tenue pour le "
+            "quotidien, une sortie ou une occasion plus habillÃ©e. Elle peut "
+            "Ãªtre associÃ©e Ã  un haut sobre pour un rendu raffinÃ© ou Ã  des "
+            "accessoires affirmÃ©s pour accentuer son style."
+        )
+    return (
+        "This Size S skirt has a polished look that highlights the visible "
+        "details of the original item. Its cut, silhouette, and colour make "
+        "it easy to style for everyday outfits, evenings, or more dressed-up "
+        "occasions. Pair it with a simple top for a refined finish or add "
+        "stronger accessories to emphasize its chosen aesthetic."
+    )
+
+
+def apply_required_listing_format(
+    listing: ListingPair,
+    product: dict[str, Any],
+    listing_type: str,
+    skirt_length: str | None = None,
+) -> ListingPair:
+    measurements = product.get("measurements") or {}
+    if listing_type == "earrings":
+        measurements = {
+            label: value
+            for label, value in measurements.items()
+            if any(
+                token in label.casefold()
+                for token in ("longueur", "largeur", "length", "width")
+            )
+        }
+    elif listing_type == "bag":
+        measurements = {}
+    elif listing_type == "skirt":
+        skirt_measurement_order = {
+            "tour de taille": 0,
+            "waist": 0,
+            "hanches": 1,
+            "hips": 1,
+            "longueur": 2,
+            "length": 2,
+        }
+        measurements = dict(
+            sorted(
+                measurements.items(),
+                key=lambda item: skirt_measurement_order.get(
+                    item[0].casefold(),
+                    99,
+                ),
+            )
+        )
+
+    if listing_type == "dress":
+        listing.english.title = _ensure_skirt_size_s(
+            listing.english.title,
+            "english",
+        )
+        listing.french.title = _normalize_french_dress_title(
+            listing.french.title
+        )
+        listing.french.title = _ensure_skirt_size_s(
+            listing.french.title,
+            "french",
+        )
+    elif listing_type == "skirt":
+        listing.english.title = _ensure_skirt_size_s(
+            _normalize_english_skirt_title(
+                listing.english.title,
+                skirt_length,
+            ),
+            "english",
+        )
+        listing.french.title = _ensure_skirt_size_s(
+            _normalize_french_skirt_title(
+                listing.french.title,
+                skirt_length,
+            ),
+            "french",
+        )
+
+    english_parts = [
+        f"{ENGLISH_MEASUREMENT_LABELS.get(label, label)}: {value}"
+        for label, value in measurements.items()
+    ]
+    french_parts = [f"{label} : {value}" for label, value in measurements.items()]
+
+    english_blocks = [listing.english.title]
+    french_blocks = [listing.french.title]
+    if english_parts:
+        separator = ", " if listing_type == "skirt" else " · "
+        english_blocks.append(separator.join(english_parts))
+        french_blocks.append(separator.join(french_parts))
+    english_blocks.append("Perfect condition.")
+    french_blocks.append(
+        "État parfait" if listing_type == "skirt" else "Parfait état."
+    )
+    listing.english.description = "\n\n".join(english_blocks)
+    listing.french.description = "\n\n".join(french_blocks)
+    listing.english.hashtags = _ensure_twenty_hashtags(
+        listing.english.hashtags, listing_type, "english"
+    )
+    listing.french.hashtags = _ensure_twenty_hashtags(
+        listing.french.hashtags, listing_type, "french"
+    )
+    return listing
+
+
+def validate_gemini_payload(payload: str | dict[str, Any]) -> ListingPair:
+    if isinstance(payload, str):
+        cleaned = payload.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```")
+            cleaned = cleaned.removesuffix("```").strip()
+        data = json.loads(cleaned)
+    else:
+        data = payload
+    return ListingPair.model_validate(data)
+
+
+def validate_fast_draft_payload(
+    payload: str | dict[str, Any],
+) -> FastListingDraft:
+    if isinstance(payload, str):
+        cleaned = payload.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```")
+            cleaned = cleaned.removesuffix("```").strip()
+        data = json.loads(cleaned)
+    else:
+        data = payload
+    return FastListingDraft.model_validate(data)
+
+
+def fast_draft_titles_are_detailed(
+    draft: FastListingDraft,
+    listing_type: str,
+) -> bool:
+    minimum = 65
+    return (
+        minimum <= len(draft.english_title) <= 100
+        and minimum <= len(draft.french_title) <= 100
+    )
+
+
+_GEMINI_CLIENT: Any = None
+
+
+def _get_gemini_client() -> Any:
+    global _GEMINI_CLIENT
+    if _GEMINI_CLIENT is None:
+        from google import genai
+
+        # Try API key first, fall back to ADC
+        _GEMINI_CLIENT = genai.Client(api_key=settings.gemini_api_key)
+
+        r e t u r n   _ G E M I N I _ C L I E N T 
+  
+ 

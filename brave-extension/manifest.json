@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "Product Extractor Bridge",
+  "version": "1.1.22",
+  "description": "Connects Product Extractor to Temu and fills reviewable Dotb listing drafts.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*",
+    "https://www.temu.com/*",
+    "https://temu.com/*",
+    "https://dotb.io/*",
+    "https://www.dotb.io/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Product Extractor Bridge",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1:8000/*",
+        "http://localhost:8000/*"
+      ],
+      "js": ["app-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.temu.com/*",
+        "https://temu.com/*"
+      ],
+      "js": ["temu-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.temu.com/*",
+        "https://temu.com/*"
+      ],
+      "js": ["temu-reader.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://dotb.io/dashboard/*",
+        "https://www.dotb.io/dashboard/*"
+      ],
+      "js": ["dotb-filler.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

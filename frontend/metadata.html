@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Drop product images and strip EXIF, XMP, IPTC, C2PA Content Credentials, and SynthID provenance labels.">
+    <title>Metadata remover — Product Extractor</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=20260814-logo">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="wordmark" href="/" aria-label="Product Extractor home">
+        <span class="wordmark-icon">S</span>
+        <span>Product Extractor</span>
+      </a>
+      <nav class="header-actions" aria-label="Application links">
+        <span id="healthStatus" class="health"><i></i><span>Connecting</span></span>
+        <a class="link-button is-active" href="/metadata" data-short="Meta" aria-current="page">Metadata remover</a>
+        <a class="link-button" href="/logo" data-short="Logo">Gemini logo</a>
+        <a class="link-button" href="/showcase" data-short="Showcase ↗">Showcase view ↗</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="intro">
+        <div>
+          <p class="kicker">Image cleanup</p>
+          <h1>Drop. Strip. Done.</h1>
+          <p class="intro-copy">JPEG, PNG, and WebP are cleaned in your browser — no upload, no re-encode. This removes EXIF, XMP, IPTC, C2PA Content Credentials, and SynthID provenance labels stored as metadata. Invisible pixel watermarks stay in the picture.</p>
+        </div>
+        <div class="meta-stats" aria-label="Batch stats">
+          <div class="stat">
+            <strong id="queuedCount">0</strong>
+            <span>queued</span>
+          </div>
+          <div class="stat">
+            <strong id="doneCount">0</strong>
+            <span>cleaned</span>
+          </div>
+          <div class="stat">
+            <strong id="removedCount">0</strong>
+            <span>bytes removed</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="search-panel meta-panel" aria-labelledby="dropTitle">
+        <div class="panel-title-row">
+          <div>
+            <h2 id="dropTitle">Image drop zone</h2>
+            <p>JPEG, PNG, WebP, AVIF. Folder drops are allowed. Originals are never overwritten.</p>
+          </div>
+          <span id="fileCount" class="count-badge">0 files</span>
+        </div>
+
+        <label id="dropZone" class="meta-dropzone" for="metaFileInput">
+          <input
+            id="metaFileInput"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif,image/gif,.jpg,.jpeg,.png,.webp,.avif,.gif"
+            multiple
+            hidden
+          >
+          <strong>Drop images here</strong>
+          <span>or click to browse. You can also drop a folder.</span>
+        </label>
+
+        <div class="form-footer meta-toolbar">
+          <label class="meta-option">
+            <input id="stripIcc" type="checkbox">
+            <span>Also strip ICC colour profile</span>
+          </label>
+          <label class="meta-option">
+            <input id="cleanSuffix" type="checkbox" checked>
+            <span>Add <code>-clean</code> to filenames</span>
+          </label>
+          <div class="form-actions">
+            <button id="clearMetaButton" class="button button-ghost" type="button" disabled>Clear</button>
+            <button id="saveFolderButton" class="button button-ghost" type="button" disabled>Save to folder</button>
+            <button id="downloadZipButton" class="button button-ghost" type="button" disabled>Download ZIP</button>
+            <button id="stripButton" class="button button-primary" type="button" disabled>Strip metadata</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="metaQueueSection" class="queue-section" hidden aria-labelledby="metaQueueTitle">
+        <div class="section-title">
+          <div>
+            <p class="kicker">Current run</p>
+            <h2 id="metaQueueTitle">Files</h2>
+          </div>
+          <span id="metaQueueSummary" class="muted"></span>
+        </div>
+        <div class="progress-track"><span id="metaProgressBar"></span></div>
+        <div id="metaQueueList" class="queue-list meta-queue-list" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/assets/metadata.js?v=20260817-c2pa" defer></script>
+  </body>
+</html>

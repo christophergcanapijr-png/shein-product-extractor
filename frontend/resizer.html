@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Drop images and resize them all to a custom dimension in one batch.">
+    <title>Image resizer — Product Extractor</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=20260930-resize">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="wordmark" href="/" aria-label="Product Extractor home">
+        <span class="wordmark-icon">S</span>
+        <span>Product Extractor</span>
+      </a>
+      <nav class="header-actions" aria-label="Application links">
+        <span id="healthStatus" class="health"><i></i><span>Connecting</span></span>
+        <a class="link-button" href="/tasks" data-short="Tasks">Task log</a>
+        <a class="link-button" href="/logo" data-short="Clean">Image cleaner</a>
+        <a class="link-button is-active" href="/resizer" data-short="Resize" aria-current="page">Image resizer</a>
+        <a class="link-button" href="/showcase" data-short="Showcase ↗">Showcase view ↗</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="intro">
+        <div>
+          <p class="kicker">Image resize</p>
+          <h1>Batch resize. Any dimension.</h1>
+          <p class="intro-copy">Drop or select multiple images, type your target width and height (e.g. 1752×2432), then hit Resize. Every image is resized to the exact dimensions you set. Output stays JPEG or PNG.</p>
+        </div>
+        <div class="meta-stats" aria-label="Batch stats">
+          <div class="stat">
+            <strong id="queuedCount">0</strong>
+            <span>queued</span>
+          </div>
+          <div class="stat">
+            <strong id="doneCount">0</strong>
+            <span>resized</span>
+          </div>
+          <div class="stat">
+            <strong id="totalCount">0</strong>
+            <span>all processed</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="search-panel meta-panel" aria-labelledby="dropTitle">
+        <div class="panel-title-row">
+          <div>
+            <h2 id="dropTitle">Image drop zone</h2>
+            <p>JPEG, PNG, WebP. Folder drops are allowed.</p>
+          </div>
+          <span id="fileCount" class="count-badge">0 files</span>
+        </div>
+
+        <label id="dropZone" class="meta-dropzone" for="resizerFileInput">
+          <input
+            id="resizerFileInput"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            multiple
+            hidden
+          >
+          <strong>Drop images here</strong>
+          <span>or click to browse. You can also drop a folder.</span>
+        </label>
+
+        <div class="resizer-dimensions">
+          <label class="resizer-dim-label">
+            <span>Width (px)</span>
+            <input id="targetWidth" type="number" min="1" max="20000" step="1" placeholder="1752" aria-label="Target width in pixels">
+          </label>
+          <span class="resizer-dim-x">×</span>
+          <label class="resizer-dim-label">
+            <span>Height (px)</span>
+            <input id="targetHeight" type="number" min="1" max="20000" step="1" placeholder="2432" aria-label="Target height in pixels">
+          </label>
+        </div>
+
+        <div class="form-footer meta-toolbar">
+          <label class="meta-option" style="gap: 8px;">
+            <span>Mode:</span>
+            <select id="resizeMode" style="padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); font-weight: 600; color: var(--ink);">
+              <option value="cover" selected>Crop to fill (scales to fill box completely)</option>
+              <option value="crop-center">Center crop (no zoom, exact original scale)</option>
+              <option value="contain">Fit inside (adds white padding)</option>
+              <option value="stretch">Stretch exactly (distorts image)</option>
+            </select>
+          </label>
+          <label class="meta-option">
+            <input id="resizeSuffix" type="checkbox" checked>
+            <span>Add <code>-resized</code> to filenames</span>
+          </label>
+          <div class="form-actions">
+            <button id="clearResizerButton" class="button button-ghost" type="button" disabled>Clear</button>
+            <button id="saveFolderButton" class="button button-ghost" type="button" disabled>Save to folder</button>
+            <button id="downloadZipButton" class="button button-ghost" type="button" disabled>Download ZIP</button>
+            <button id="resizeButton" class="button button-primary" type="button" disabled>Resize images</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="resizerQueueSection" class="queue-section" hidden aria-labelledby="resizerQueueTitle">
+        <div class="section-title">
+          <div>
+            <p class="kicker">Current run</p>
+            <h2 id="resizerQueueTitle">Files</h2>
+          </div>
+          <span id="resizerQueueSummary" class="muted"></span>
+        </div>
+        <div class="progress-track"><span id="resizerProgressBar"></span></div>
+        <div id="resizerQueueList" class="queue-list meta-queue-list" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/assets/resizer.js?v=20260930-resize" defer></script>
+  </body>
+</html>
