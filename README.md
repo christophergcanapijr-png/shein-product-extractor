@@ -1,5 +1,7 @@
 # SHEIN Product Extractor
 
+> **Note:** This tool is actively used by me for my job, and I update it frequently.
+
 ## Quick start
 
 Double-click `START APP.bat`. It starts the local server and opens the app in
@@ -51,6 +53,8 @@ The app defaults to the stable `gemini-3.6-flash` model. Change
 model.
 
 ## Vertex AI image generation
+
+> **Warning:** The Vertex AI integration is currently not working.
 
 The **Generate image** button uses Vertex AI instead of a Gemini API key, so it
 can spend Google Cloud free-trial credits attached to your Cloud project.
